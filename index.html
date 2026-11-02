@@ -1,0 +1,393 @@
+<!--Created by Sithel. - This tool calculates currency payouts and distributions for FFXI Dynamis runs.-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Currency Payout & Distribution Calculator</title>
+    <style>
+        /* FFXI Inspired Palette */
+        :root {
+            --ff-bg: #1a1e23;
+            --ff-window: #282e36;
+            --ff-border: #4a5460;
+            --ff-gold: #eecf7c;
+            --ff-text: #dcdcdc;
+            --ff-highlight: #4682b4;
+            --accent-green: #73d687;
+            --accent-red: #ff7878;
+        }
+
+        body { 
+            font-family: 'Segoe UI', Tahoma, sans-serif; 
+            background-color: #0b0d0f; 
+            color: var(--ff-text); 
+            padding: 40px 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container { 
+            width: 100%; max-width: 900px; 
+            background: var(--ff-window); 
+            border: 2px solid var(--ff-border);
+            padding: 25px;
+            border-radius: 4px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+        }
+
+        h2 { 
+            text-align: center; color: var(--ff-gold); 
+            text-transform: uppercase; letter-spacing: 2px;
+            border-bottom: 1px solid var(--ff-border);
+            padding-bottom: 15px; margin-top: 0;
+        }
+
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { border: 1px solid var(--ff-border); padding: 10px; text-align: center; }
+        
+        /* Input Styles */
+        input.edit-cell { 
+            background: #1a1e23; border: 1px solid var(--ff-border);
+            color: white; padding: 6px; border-radius: 2px; text-align: center;
+            width: 80px; box-sizing: border-box;
+        }
+
+        input.text-cell { 
+            background: #1a1e23; border: 1px solid var(--ff-border);
+            color: white; padding: 6px; border-radius: 2px; text-align: left;
+            width: 98%; box-sizing: border-box;
+        }
+
+        input:focus { border-color: var(--ff-highlight); outline: none; }
+
+        /* Currency Text Match Colors */
+        .text-byne { color: #38bdf8; font-weight: 500; }    /* Light Blue matching Bynes header */
+        .text-shell { color: #4ade80; font-weight: 500; }   /* Green matching Shells header */
+        .text-bronze { color: #fb923c; font-weight: 500; }  /* Orange/Bronze matching Bronze header */
+
+        /* Action Area Wrapper */
+        .action-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 30px 0 25px 0;
+        }
+
+        /* Notification text reserves its space using visibility instead of display */
+        #copyNotification { 
+            color: var(--accent-green); 
+            font-weight: bold; 
+            font-size: 0.9rem; 
+            visibility: hidden; 
+            margin-bottom: 8px; 
+        }
+
+        /* Buttons Bar */
+        .action-bar { 
+            display: flex; 
+            gap: 10px; 
+            justify-content: center; 
+            align-items: center; 
+        }
+
+        button { 
+            background: #333d49; border: 1px solid var(--ff-border); color: white;
+            padding: 8px 16px; cursor: pointer; transition: 0.2s;
+        }
+        button:hover { background: var(--ff-highlight); }
+
+        .results-table { width: 100%; background: #1a1e23; }
+        .results-table th { background: #282e36; color: var(--ff-gold); }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Dynamis Calculator</h2>
+    
+        <table class="config-table">
+            <tr>
+                <th class="header-main">Initial Buy-In</th>
+                <th class="header-val" id="displayBuyin">$1,000,000</th>
+                <th class="header-main">Initial Sales-Cut</th>
+                <th class="header-val" id="displaySalesCut">$0</th>
+            </tr>
+            <tr>
+                <td class="cell-players-header">Players</td>
+                <td class="cell-bynes-header" style="background: rgba(56, 189, 248, 0.15);">Bynes</td>
+                <td class="cell-shells-header" style="background: rgba(74, 222, 128, 0.15);">Shells</td>
+                <td class="cell-bronze-header" style="background: rgba(251, 146, 60, 0.15);">Bronze</td>
+            </tr>
+            <tr>
+                <td><input type="number" id="inputPlayers" class="edit-cell" value="1" min="1" max="18" oninput="saveConfig(); calculate()"></td>
+                <td><input type="number" id="inputBynes" class="edit-cell" value="0" min="0" oninput="saveConfig(); calculate()"></td>
+                <td><input type="number" id="inputShells" class="edit-cell" value="0" min="0" oninput="saveConfig(); calculate()"></td>
+                <td><input type="number" id="inputBronze" class="edit-cell" value="0" min="0" oninput="saveConfig(); calculate()"></td>
+            </tr>
+            <tr>
+                <td class="cell-sales-header">Sales</td>
+                <td class="cell-bynes-header">100 Byne</td>
+                <td class="cell-shells-header">Jadeshell</td>
+                <td class="cell-bronze-header">Silverpiece</td>
+            </tr>
+            <tr>
+                <td><input type="number" id="inputSales" class="edit-cell sales-cell" value="0" min="0" oninput="saveConfig(); calculate()"></td>
+                <td><input type="number" id="input100Byne" class="edit-cell" value="0" min="0" oninput="saveConfig(); calculate()"></td>
+                <td><input type="number" id="inputJadeshell" class="edit-cell" value="0" min="0" oninput="saveConfig(); calculate()"></td>
+                <td><input type="number" id="inputSilverpiece" class="edit-cell" value="0" min="0" oninput="saveConfig(); calculate()"></td>
+            </tr>
+            <tr>
+                <td class="cell-payout-header">Currency Payout</td>
+                <td class="static-display" id="payoutBynes">0</td>
+                <td class="static-display" id="payoutShells">0</td>
+                <td class="static-display" id="payoutBronze">0</td>
+            </tr>
+            <tr>
+                <td class="cell-leftover-header">Currency Leftover</td>
+                <td class="static-display" id="leftoverBynes">0</td>
+                <td class="static-display" id="leftoverShells">0</td>
+                <td class="static-display" id="leftoverBronze">0</td>
+            </tr>
+            <tr>
+                <td class="cell-entryfee-header">Entry Fee</td>
+                <td class="static-display" colspan="3" id="displayEntryFee" style="color: #5cb85c;">$1,000,000 Gil</td>
+            </tr>
+            <tr>
+                <td class="cell-zone-header">Dynamis Zone</td>
+                <td colspan="3"><input type="text" id="inputZone" class="text-cell" placeholder="Enter Zone Name..." oninput="saveConfig()"></td>
+            </tr>
+        </table>
+    
+        <div class="action-wrapper">
+            <span id="copyNotification">Copied to clipboard!</span>
+            <div class="action-bar">
+                <button class="calculate-btn" onclick="randomizePlayers()">Randomize & Calculate</button>
+                <button class="discord-btn" onclick="copyForDiscord()">Copy for Discord</button>
+                <button class="reset-btn" onclick="resetAll()">Reset</button>
+            </div>
+        </div>
+    
+        <table class="results-table">
+            <thead>
+                <tr>
+                    <th class="col-num">#</th>
+                    <th class="col-name">Player Name</th>
+                    <th class="cell-bynes-header" style="background: rgba(56, 189, 248, 0.15);">Bynes</th>
+                    <th class="cell-shells-header" style="background: rgba(74, 222, 128, 0.15);">Shells</th>
+                    <th class="cell-bronze-header" style="background: rgba(251, 146, 60, 0.15);">Bronze</th>
+                    <th class="cell-leftover-header">Currency Leftovers</th>
+                </tr>
+            </thead>
+            <tbody id="playerTableBody"></tbody>
+        </table>
+    </div>
+
+    <script>
+        let playerNamesData = JSON.parse(localStorage.getItem('dynamis_player_names')) || Array.from({length: 18}, (_, i) => "Player " + (i + 1));
+        let currentShuffledOrder = Array.from({length: 18}, (_, i) => i);
+    
+        function saveConfig() {
+            const config = {
+                players: document.getElementById('inputPlayers').value,
+                bynes: document.getElementById('inputBynes').value,
+                shells: document.getElementById('inputShells').value,
+                bronze: document.getElementById('inputBronze').value,
+                sales: document.getElementById('inputSales').value,
+                byne100: document.getElementById('input100Byne').value,
+                jadeshell: document.getElementById('inputJadeshell').value,
+                silverpiece: document.getElementById('inputSilverpiece').value,
+                zone: document.getElementById('inputZone').value
+            };
+            localStorage.setItem('dynamis_config', JSON.stringify(config));
+        }
+    
+        function loadConfig() {
+            const saved = localStorage.getItem('dynamis_config');
+            if (saved) {
+                try {
+                    const config = JSON.parse(saved);
+                    if (config.players !== undefined) document.getElementById('inputPlayers').value = config.players;
+                    if (config.bynes !== undefined) document.getElementById('inputBynes').value = config.bynes;
+                    if (config.shells !== undefined) document.getElementById('inputShells').value = config.shells;
+                    if (config.bronze !== undefined) document.getElementById('inputBronze').value = config.bronze;
+                    if (config.sales !== undefined) document.getElementById('inputSales').value = config.sales;
+                    if (config.byne100 !== undefined) document.getElementById('input100Byne').value = config.byne100;
+                    if (config.jadeshell !== undefined) document.getElementById('inputJadeshell').value = config.jadeshell;
+                    if (config.silverpiece !== undefined) document.getElementById('inputSilverpiece').value = config.silverpiece;
+                    if (config.zone !== undefined) document.getElementById('inputZone').value = config.zone;
+                } catch (e) { console.error("Error loading config", e); }
+            }
+        }
+    
+        function updatePlayerName(index, value) {
+            playerNamesData[index] = value;
+            localStorage.setItem('dynamis_player_names', JSON.stringify(playerNamesData));
+        }
+    
+        function resetAll() {
+            document.getElementById('inputPlayers').value = 1;
+            document.getElementById('inputZone').value = '';
+            const inputs = document.querySelectorAll('.edit-cell:not(#inputPlayers)');
+            inputs.forEach(input => input.value = 0);
+            localStorage.removeItem('dynamis_config');
+            window.playerLeftoversMap = {};
+            calculate();
+        }
+    
+        function calculate() {
+            const numPlayers = Math.max(1, parseInt(document.getElementById('inputPlayers').value) || 1);
+            const sales = parseInt(document.getElementById('inputSales').value) || 0;
+    
+            const buyinPerPlayer = Math.round(1000000 / numPlayers);
+            const salesCutPerPlayer = Math.round(sales / numPlayers);
+            const finalEntryFee = buyinPerPlayer - salesCutPerPlayer;
+    
+            document.getElementById('displayBuyin').innerText = '$' + buyinPerPlayer.toLocaleString();
+            document.getElementById('displaySalesCut').innerText = '$' + salesCutPerPlayer.toLocaleString();
+            document.getElementById('displayEntryFee').innerText = '$' + finalEntryFee.toLocaleString() + ' Gil';
+    
+            const rawBynes = (parseInt(document.getElementById('inputBynes').value) || 0) + (parseInt(document.getElementById('input100Byne').value) || 0) * 100;
+            const rawShells = (parseInt(document.getElementById('inputShells').value) || 0) + (parseInt(document.getElementById('inputJadeshell').value) || 0) * 100;
+            const rawBronze = (parseInt(document.getElementById('inputBronze').value) || 0) + (parseInt(document.getElementById('inputSilverpiece').value) || 0) * 100;
+    
+            document.getElementById('payoutBynes').innerText = Math.floor(rawBynes / numPlayers);
+            document.getElementById('payoutShells').innerText = Math.floor(rawShells / numPlayers);
+            document.getElementById('payoutBronze').innerText = Math.floor(rawBronze / numPlayers);
+    
+            document.getElementById('leftoverBynes').innerText = rawBynes % numPlayers;
+            document.getElementById('leftoverShells').innerText = rawShells % numPlayers;
+            document.getElementById('leftoverBronze').innerText = rawBronze % numPlayers;
+    
+            renderTable();
+        }
+    
+        function renderTable() {
+            const numPlayers = Math.max(1, parseInt(document.getElementById('inputPlayers').value) || 1);
+            const tbody = document.getElementById('playerTableBody');
+            tbody.innerHTML = '';
+            for (let i = 0; i < 18; i++) {
+                const tr = document.createElement('tr');
+                const isActive = i < numPlayers;
+                tr.style.opacity = isActive ? '1' : '0.3';
+                const originalIndex = currentShuffledOrder[i];
+                
+                let leftovers = "";
+                if (isActive && window.playerLeftoversMap) {
+                    const items = window.playerLeftoversMap[originalIndex] || [];
+                    let counts = {}; items.forEach(it => counts[it] = (counts[it] || 0) + 1);
+                    
+                    // Map counts and apply individual matching text colors
+                    leftovers = Object.entries(counts).map(([k, v]) => {
+                        let colorClass = '';
+                        if (k === 'Byne') colorClass = 'text-byne';
+                        else if (k === 'Shell') colorClass = 'text-shell';
+                        else if (k === 'Bronze') colorClass = 'text-bronze';
+                        return `<span class="${colorClass}">${v} ${k}</span>`;
+                    }).join(" - ");
+                }
+                tr.innerHTML = `<td>${i+1}</td><td><input class="player-name-input" value="${playerNamesData[originalIndex]}" oninput="updatePlayerName(${originalIndex}, this.value)" ${isActive?'':'disabled'}></td><td>${isActive?document.getElementById('payoutBynes').innerText:'-'}</td><td>${isActive?document.getElementById('payoutShells').innerText:'-'}</td><td>${isActive?document.getElementById('payoutBronze').innerText:'-'}</td><td class="col-leftovers">${isActive ? (leftovers || "0") : "-"}</td>`;
+                tbody.appendChild(tr);
+            }
+        }
+    
+        function randomizePlayers() {
+            const numPlayers = parseInt(document.getElementById('inputPlayers').value) || 1;
+            let active = Array.from({length: numPlayers}, (_, i) => i).sort(() => Math.random() - 0.5);
+            currentShuffledOrder = [...active, ...Array.from({length: 18 - numPlayers}, (_, i) => i + numPlayers)];
+            
+            window.playerLeftoversMap = {};
+            for(let i=0; i<numPlayers; i++) window.playerLeftoversMap[i] = [];
+            const distribute = (type, count) => {
+                let p = [...active].sort(() => Math.random() - 0.5);
+                for(let i=0; i<count; i++) window.playerLeftoversMap[p[i % numPlayers]].push(type);
+            };
+            distribute("Byne", parseInt(document.getElementById('leftoverBynes').innerText));
+            distribute("Shell", parseInt(document.getElementById('leftoverShells').innerText));
+            distribute("Bronze", parseInt(document.getElementById('leftoverBronze').innerText));
+            renderTable();
+        }
+    
+        function copyForDiscord() {
+            const numPlayers = parseInt(document.getElementById('inputPlayers').value) || 1;
+            const zone = document.getElementById('inputZone').value || 'Unknown';
+            
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+            const formattedDateTime = `${dateStr}, ${timeStr}`;
+    
+            let activeNames = [];
+            for (let i = 0; i < numPlayers; i++) {
+                activeNames.push(playerNamesData[currentShuffledOrder[i]]);
+            }
+    
+            const pBynes = document.getElementById('payoutBynes').innerText;
+            const pShells = document.getElementById('payoutShells').innerText;
+            const pBronze = document.getElementById('payoutBronze').innerText;
+    
+            const entryFeeText = document.getElementById('displayEntryFee').innerText;
+    
+            let byneWinners = [];
+            let shellWinners = [];
+            let bronzeWinners = [];
+    
+            if (window.playerLeftoversMap) {
+                for (let i = 0; i < numPlayers; i++) {
+                    const origIdx = currentShuffledOrder[i];
+                    const playerName = playerNamesData[origIdx];
+                    const items = window.playerLeftoversMap[origIdx] || [];
+                    items.forEach(item => {
+                        if (item === "Byne") byneWinners.push(playerName);
+                        if (item === "Shell") shellWinners.push(playerName);
+                        if (item === "Bronze") bronzeWinners.push(playerName);
+                    });
+                }
+            }
+    
+            let discordText = `**⚔️ Dynamis Run**\n`;
+            discordText += `📅 ${formattedDateTime}\n`;
+            discordText += `📍 Dynamis Zone: ${zone}\n`;
+            discordText += `👥 Players: ${activeNames.join(', ')}\n\n`;
+    
+            discordText += `**💰 Currency Distribution**\n`;
+            if (parseInt(pBynes) > 0) discordText += `- Byne Bill: **${pBynes}** per player\n`;
+            if (parseInt(pShells) > 0) discordText += `- Tukuku Whiteshell: **${pShells}** per player\n`;
+            if (parseInt(pBronze) > 0) discordText += `- Ordelle Bronzepiece: **${pBronze}** per player\n`;
+            if (parseInt(pBynes) === 0 && parseInt(pShells) === 0 && parseInt(pBronze) === 0) {
+                discordText += `- None distributed\n`;
+            }
+            discordText += `\n`;
+    
+            discordText += `**📊 Entry Fee per player:** ${entryFeeText}\n\n`;
+    
+            discordText += `**🎲 Leftover Lottery**\n`;
+            let leftoverLines = [];
+            if (byneWinners.length > 0) leftoverLines.push(`- Byne: ${byneWinners.length} pieces (${byneWinners.join(', ')})`);
+            if (shellWinners.length > 0) leftoverLines.push(`- Shell: ${shellWinners.length} pieces (${shellWinners.join(', ')})`);
+            if (bronzeWinners.length > 0) leftoverLines.push(`- Bronze: ${bronzeWinners.length} pieces (${bronzeWinners.join(', ')})`);
+            
+            if (leftoverLines.length > 0) {
+                discordText += leftoverLines.join('\n') + `\n`;
+            } else {
+                discordText += `- None\n`;
+            }
+    
+            discordText += `\n*Generated by Dynamis Calculator*`;
+    
+            navigator.clipboard.writeText(discordText).then(() => {
+                const notification = document.getElementById('copyNotification');
+                notification.style.visibility = 'visible';
+                setTimeout(() => {
+                    notification.style.visibility = 'hidden';
+                }, 2000);
+            });
+        }
+    
+        window.onload = () => { 
+            loadConfig();
+            calculate(); 
+        };
+    </script>
+</body>
+</html>
