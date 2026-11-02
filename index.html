@@ -34,6 +34,7 @@
             padding: 25px;
             border-radius: 4px;
             box-shadow: 0 0 20px rgba(0,0,0,0.8);
+            position: relative; /* Anchors the absolute footer signature */
         }
 
         h2 { 
@@ -99,6 +100,16 @@
 
         .results-table { width: 100%; background: #1a1e23; }
         .results-table th { background: #282e36; color: var(--ff-gold); }
+
+        /* Creator Signature Footer */
+        .creator-footer {
+            text-align: right;
+            font-size: 0.85rem;
+            color: var(--ff-gold);
+            margin-top: 15px;
+            font-style: italic;
+            letter-spacing: 0.5px;
+        }
     </style>
 </head>
 <body>
@@ -126,7 +137,7 @@
                 <td><input type="number" id="inputBronze" class="edit-cell" value="0" min="0" oninput="saveConfig(); calculate()"></td>
             </tr>
             <tr>
-                <td class="cell-sales-header">Sales</td>
+                <td class="cell-sales-header">Total Sales</td>
                 <td class="cell-bynes-header">100 Byne</td>
                 <td class="cell-shells-header">Jadeshell</td>
                 <td class="cell-bronze-header">Silverpiece</td>
@@ -181,6 +192,9 @@
             </thead>
             <tbody id="playerTableBody"></tbody>
         </table>
+
+        <!-- Bottom Right Creator Signature -->
+        <div class="creator-footer">Created by Sithel</div>
     </div>
 
     <script>
