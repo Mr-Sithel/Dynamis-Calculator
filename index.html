@@ -336,6 +336,11 @@
                 activeNames.push(playerNamesData[currentShuffledOrder[i]]);
             }
     
+            // Calculate total raw currency values (singles + 100s converted)
+            const totalBynes = (parseInt(document.getElementById('inputBynes').value) || 0) + (parseInt(document.getElementById('input100Byne').value) || 0) * 100;
+            const totalShells = (parseInt(document.getElementById('inputShells').value) || 0) + (parseInt(document.getElementById('inputJadeshell').value) || 0) * 100;
+            const totalBronze = (parseInt(document.getElementById('inputBronze').value) || 0) + (parseInt(document.getElementById('inputSilverpiece').value) || 0) * 100;
+
             const pBynes = document.getElementById('payoutBynes').innerText;
             const pShells = document.getElementById('payoutShells').innerText;
             const pBronze = document.getElementById('payoutBronze').innerText;
@@ -363,6 +368,11 @@
             discordText += `📅 ${formattedDateTime}\n`;
             discordText += `📍 Dynamis Zone: ${zone}\n`;
             discordText += `👥 Players: ${activeNames.join(', ')}\n\n`;
+
+            discordText += `**💵 Total Currency**\n`;
+            discordText += `- Bynes: **${totalBynes.toLocaleString()}**\n`;
+            discordText += `- Shells: **${totalShells.toLocaleString()}**\n`;
+            discordText += `- Bronze: **${totalBronze.toLocaleString()}**\n\n`;
     
             discordText += `**💰 Currency Distribution**\n`;
             if (parseInt(pBynes) > 0) discordText += `- Byne Bill: **${pBynes}** per player\n`;
