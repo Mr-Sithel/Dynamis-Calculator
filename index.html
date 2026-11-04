@@ -168,7 +168,21 @@
             </tr>
             <tr>
                 <td class="cell-zone-header">Dynamis Zone</td>
-                <td colspan="3"><input type="text" id="inputZone" class="text-cell" placeholder="Enter Zone Name..." oninput="saveConfig()"></td>
+                <td colspan="3">
+                    <select id="inputZone" class="text-cell" onchange="saveConfig()">
+                        <option value="">Select Zone...</option>
+                        <option value="Windurst">Windurst</option>
+                        <option value="San d'Oria">San d'Oria</option>
+                        <option value="Bastok">Bastok</option>
+                        <option value="Jeuno">Jeuno</option>
+                        <option value="Beaucedine">Beaucedine</option>
+                        <option value="Xarcabard">Xarcabard</option>
+                        <option value="Valkurm">Valkurm</option>
+                        <option value="Buburimu">Buburimu</option>
+                        <option value="Qufim">Qufim</option>
+                        <option value="Tavnazia">Tavnazia</option>
+                    </select>
+                </td>
             </tr>
         </table>
     
@@ -197,7 +211,7 @@
 
         <!-- Bottom Left/Right Creator Signature -->
         <div class="footer-row">
-            <div class="version-footer">Version: 1.4</div>
+            <div class="version-footer">Version: 1.5</div>
             <div class="creator-footer">Created by Sithel</div>
         </div>
     </div>
@@ -370,9 +384,8 @@
                 }
             }
     
-            let discordText = `**⚔️ Dynamis Run**\n`;
+            let discordText = `**⚔️ Dynamis - ${zone}**\n`;
             discordText += `📅 ${formattedDateTime}\n`;
-            discordText += `📍 Dynamis Zone: ${zone}\n`;
             discordText += `👥 Total Players: (**${numPlayers}**)\n`;
             discordText += `${activeNames.join(', ')}\n\n`;
 
