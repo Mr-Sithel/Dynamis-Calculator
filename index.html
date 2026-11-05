@@ -211,7 +211,7 @@
 
         <!-- Bottom Left/Right Creator Signature -->
         <div class="footer-row">
-            <div class="version-footer">Version: 1.5</div>
+            <div class="version-footer">Version: 1.6</div>
             <div class="creator-footer">Created by Sithel</div>
         </div>
     </div>
@@ -407,9 +407,9 @@
     
             discordText += `**🎲 Leftover Lottery**\n`;
             let leftoverLines = [];
-            if (byneWinners.length > 0) leftoverLines.push(`- Byne: ${byneWinners.length} pieces (${byneWinners.join(', ')})`);
-            if (shellWinners.length > 0) leftoverLines.push(`- Shell: ${shellWinners.length} pieces (${shellWinners.join(', ')})`);
-            if (bronzeWinners.length > 0) leftoverLines.push(`- Bronze: ${bronzeWinners.length} pieces (${bronzeWinners.join(', ')})`);
+            if (byneWinners.length > 0) leftoverLines.push(`- 1 Byne: ${byneWinners.length} Winners (${byneWinners.join(', ')})`);
+            if (shellWinners.length > 0) leftoverLines.push(`- 1 Shell: ${shellWinners.length} Winners (${shellWinners.join(', ')})`);
+            if (bronzeWinners.length > 0) leftoverLines.push(`- 1 Bronze: ${bronzeWinners.length} Winners (${bronzeWinners.join(', ')})`);
             
             if (leftoverLines.length > 0) {
                 discordText += leftoverLines.join('\n') + `\n`;
