@@ -1,0 +1,29 @@
+{
+  "updated_at": "2026-11-12T21:35:00+00:00",
+  "server": "HorizonXI",
+  "provider": "PSXI",
+  "byne": {
+    "single": 5900,
+    "average": 5820,
+    "median": 5900,
+    "stock": 28,
+    "source": "Auction House single-item summary"
+  },
+  "whiteshell": {
+    "single": 8000,
+    "average": 8050,
+    "median": 8000,
+    "stock": 7,
+    "source": "Auction House single-item summary"
+  },
+  "bronzepiece": {
+    "lowest_bazaar": 7600,
+    "quantity": 19,
+    "source": "Lowest active online Bazaar asking price (not an AH sale)"
+  },
+  "source_urls": {
+    "byne": "https://www.psxi.gg/s/horizonxi/ah/misc-3/1-byne-bill",
+    "whiteshell": "https://www.psxi.gg/s/horizonxi/ah/misc-3/t-whiteshell",
+    "bronzepiece": "https://www.psxi.gg/s/horizonxi/ah/misc-3/o-bronzepiece"
+  }
+}
