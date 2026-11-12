@@ -535,30 +535,57 @@
             return Number.isFinite(number) ? number.toLocaleString() + ' gil' : 'Unavailable';
         }
 
-        async function fetchPsxiItem(url) {
-            const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
-            const response = await fetch(proxyUrl);
-            if (!response.ok) throw new Error('Network error connecting to proxy');
-            const data = await response.json();
-            const parser = new DOMParser();
-            return parser.parseFromString(data.contents, 'text/html');
+        async function fetchHtmlViaProxies(targetUrl) {
+            const proxies = [
+                async (url) => {
+                    const res = await fetch('https://corsproxy.io/?url=' + encodeURIComponent(url));
+                    if (!res.ok) throw new Error(`corsproxy HTTP ${res.status}`);
+                    return await res.text();
+                },
+                async (url) => {
+                    const res = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(url));
+                    if (!res.ok) throw new Error(`allorigins HTTP ${res.status}`);
+                    const data = await res.json();
+                    if (!data.contents) throw new Error('allorigins empty response');
+                    return data.contents;
+                },
+                async (url) => {
+                    const res = await fetch('https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(url));
+                    if (!res.ok) throw new Error(`codetabs HTTP ${res.status}`);
+                    return await res.text();
+                }
+            ];
+
+            let lastError = null;
+            for (const proxyFn of proxies) {
+                try {
+                    const html = await proxyFn(targetUrl);
+                    if (html && html.length > 500) {
+                        const parser = new DOMParser();
+                        return parser.parseFromString(html, 'text/html');
+                    }
+                } catch (err) {
+                    lastError = err;
+                }
+            }
+            throw lastError || new Error('All CORS proxies failed');
         }
 
         async function parseItemData(url) {
-            const doc = await fetchPsxiItem(url);
-            const text = doc.body.textContent || "";
+            const doc = await fetchHtmlViaProxies(url);
+            const text = doc.body ? doc.body.textContent.replace(/\s+/g, ' ') : '';
 
             // 1. Try parsing AH single-item summary
             const ahMatch = text.match(/Single\s+([\d,]+)\s*gil\s+Avg\s+([\d,]+)\s+Median\s+([\d,]+)\s+Stock\s+([\d,]+)/i);
             if (ahMatch) {
-                const single = parseInt(ahMatch[1].replace(/,/g, ''));
-                const stock = parseInt(ahMatch[4].replace(/,/g, ''));
+                const single = parseInt(ahMatch[1].replace(/,/g, ''), 10);
+                const stock = parseInt(ahMatch[4].replace(/,/g, ''), 10);
                 if (single > 0 || stock > 0) {
                     return {
                         source: "AH",
                         price: single,
-                        average: parseInt(ahMatch[2].replace(/,/g, '')),
-                        median: parseInt(ahMatch[3].replace(/,/g, '')),
+                        average: parseInt(ahMatch[2].replace(/,/g, ''), 10),
+                        median: parseInt(ahMatch[3].replace(/,/g, ''), 10),
                         stock: stock
                     };
                 }
@@ -569,23 +596,25 @@
             let lowestQty = null;
 
             const headings = doc.querySelectorAll('h2, h3, h4');
-            for (let h of headings) {
+            for (const h of headings) {
                 if (h.textContent.includes('Bazaar Listings')) {
-                    const table = h.nextElementSibling;
-                    if (table && table.tagName === 'TABLE') {
-                        const rows = table.querySelectorAll('tr');
-                        for (let row of rows) {
-                            const rowText = row.textContent;
-                            if (rowText.includes('Online')) {
+                    let el = h.nextElementSibling;
+                    while (el && el.tagName !== 'TABLE') {
+                        el = el.nextElementSibling;
+                    }
+                    if (el && el.tagName === 'TABLE') {
+                        const rows = el.querySelectorAll('tr');
+                        for (const row of rows) {
+                            if (/\bOnline\b/i.test(row.textContent)) {
                                 const cells = row.querySelectorAll('td, th');
                                 if (cells.length >= 2) {
                                     const priceMatch = cells[1].textContent.match(/([\d,]+)/);
                                     if (priceMatch) {
-                                        const p = parseInt(priceMatch[1].replace(/,/g, ''));
+                                        const p = parseInt(priceMatch[1].replace(/,/g, ''), 10);
                                         let q = 1;
                                         if (cells.length >= 3) {
                                             const qMatch = cells[2].textContent.match(/\d+/);
-                                            if (qMatch) q = parseInt(qMatch[0]);
+                                            if (qMatch) q = parseInt(qMatch[0], 10);
                                         }
                                         if (lowestPrice === null || p < lowestPrice) {
                                             lowestPrice = p;
@@ -607,57 +636,94 @@
                 };
             }
 
-            throw new Error("No data found");
+            throw new Error("Could not parse AH or Bazaar data from page");
+        }
+
+        function updateCardUI(result, priceId, typeId, detailsId) {
+            const priceEl = document.getElementById(priceId);
+            const typeEl = document.getElementById(typeId);
+            const detailsEl = document.getElementById(detailsId);
+
+            if (result.source === "AH") {
+                priceEl.textContent = formatGil(result.price);
+                typeEl.textContent = 'Auction House';
+                detailsEl.textContent = `Average: ${formatGil(result.average)} · Median: ${formatGil(result.median)} · Stock: ${result.stock}`;
+            } else if (result.source === "Bazaar") {
+                priceEl.textContent = formatGil(result.price);
+                typeEl.textContent = 'Lowest Online Bazaar';
+                detailsEl.textContent = `Lowest active Bazaar asking price · Qty: ${result.quantity}`;
+            }
+        }
+
+        function setCardUnavailable(priceId, typeId, detailsId, reason = 'No active listings') {
+            document.getElementById(priceId).textContent = 'Unavailable';
+            document.getElementById(typeId).textContent = '—';
+            document.getElementById(detailsId).textContent = reason;
         }
 
         async function loadMarketPrices() {
             const status = document.getElementById('marketStatus');
             status.textContent = 'Fetching live market prices from PSXI...';
 
-            const urls = {
-                byne: "https://www.psxi.gg/s/horizonxi/ah/misc-3/1-byne-bill",
-                whiteshell: "https://www.psxi.gg/s/horizonxi/ah/misc-3/t-whiteshell",
-                bronzepiece: "https://www.psxi.gg/s/horizonxi/ah/misc-3/o-bronzepiece"
-            };
+            const items = [
+                { key: 'byne', url: 'https://www.psxi.gg/s/horizonxi/ah/misc-3/1-byne-bill', ids: ['priceByne', 'typeByne', 'detailsByne'] },
+                { key: 'whiteshell', url: 'https://www.psxi.gg/s/horizonxi/ah/misc-3/t-whiteshell', ids: ['priceShell', 'typeShell', 'detailsShell'] },
+                { key: 'bronzepiece', url: 'https://www.psxi.gg/s/horizonxi/ah/misc-3/o-bronzepiece', ids: ['priceBronze', 'typeBronze', 'detailsBronze'] }
+            ];
 
-            const updateCard = (result, priceId, typeId, detailsId) => {
-                const priceEl = document.getElementById(priceId);
-                const typeEl = document.getElementById(typeId);
-                const detailsEl = document.getElementById(detailsId);
+            let successCount = 0;
+            let lastErrMsg = '';
 
-                if (result.source === "AH") {
-                    priceEl.textContent = formatGil(result.price);
-                    typeEl.textContent = 'Auction House';
-                    detailsEl.textContent = `Average: ${formatGil(result.average)} · Median: ${formatGil(result.median)} · Stock: ${result.stock}`;
-                } else if (result.source === "Bazaar") {
-                    priceEl.textContent = formatGil(result.price);
-                    typeEl.textContent = 'Lowest Online Bazaar';
-                    detailsEl.textContent = `Lowest active Bazaar asking price · Qty: ${result.quantity}`;
+            for (let i = 0; i < items.length; i++) {
+                if (i > 0) await new Promise(r => setTimeout(r, 600)); // brief stagger to prevent proxy rate-limits
+                const item = items[i];
+                try {
+                    const result = await parseItemData(item.url);
+                    updateCardUI(result, ...item.ids);
+                    successCount++;
+                } catch (err) {
+                    lastErrMsg = err.message;
+                    setCardUnavailable(...item.ids, err.message);
                 }
-            };
+            }
 
-            try {
-                // Fetch all 3 concurrently
-                const [byneRes, shellRes, bronzeRes] = await Promise.allSettled([
-                    parseItemData(urls.byne),
-                    parseItemData(urls.whiteshell),
-                    parseItemData(urls.bronzepiece)
-                ]);
-
-                if (byneRes.status === 'fulfilled') updateCard(byneRes.value, 'priceByne', 'typeByne', 'detailsByne');
-                else document.getElementById('priceByne').textContent = 'Unavailable';
-
-                if (shellRes.status === 'fulfilled') updateCard(shellRes.value, 'priceShell', 'typeShell', 'detailsShell');
-                else document.getElementById('priceShell').textContent = 'Unavailable';
-
-                if (bronzeRes.status === 'fulfilled') updateCard(bronzeRes.value, 'priceBronze', 'typeBronze', 'detailsBronze');
-                else document.getElementById('priceBronze').textContent = 'Unavailable';
-
+            if (successCount > 0) {
                 const now = new Date();
-                document.getElementById('marketUpdated').textContent = 'Last updated: ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                status.textContent = 'Live prices loaded successfully.';
-            } catch (error) {
-                status.textContent = 'Failed to load live market prices.';
+                document.getElementById('marketUpdated').textContent =
+                    'Last updated: ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                status.textContent = successCount === 3
+                    ? 'Live prices loaded from PSXI.'
+                    : `Loaded ${successCount}/3 live prices (${lastErrMsg}).`;
+            } else {
+                // Fallback to cached prices.json if all live proxies are blocked/rate-limited
+                try {
+                    const res = await fetch('./prices.json?cache=' + Date.now(), { cache: 'no-store' });
+                    if (!res.ok) throw new Error('No fallback prices.json');
+                    const fallback = await res.json();
+
+                    const mapJsonItem = (entry) => {
+                        if (!entry) return null;
+                        if (entry.single !== undefined) {
+                            return { source: 'AH', price: entry.single, average: entry.average, median: entry.median, stock: entry.stock };
+                        }
+                        if (entry.lowest_bazaar !== undefined) {
+                            return { source: 'Bazaar', price: entry.lowest_bazaar, quantity: entry.quantity };
+                        }
+                        return null;
+                    };
+
+                    const b = mapJsonItem(fallback.byne);
+                    const s = mapJsonItem(fallback.whiteshell);
+                    const o = mapJsonItem(fallback.bronzepiece);
+
+                    if (b) updateCardUI(b, 'priceByne', 'typeByne', 'detailsByne');
+                    if (s) updateCardUI(s, 'priceShell', 'typeShell', 'detailsShell');
+                    if (o) updateCardUI(o, 'priceBronze', 'typeBronze', 'detailsBronze');
+
+                    status.textContent = `Live proxy blocked (${lastErrMsg}) — showing cached prices.json.`;
+                } catch (_) {
+                    status.textContent = `Could not fetch live prices: ${lastErrMsg}`;
+                }
             }
         }
 
