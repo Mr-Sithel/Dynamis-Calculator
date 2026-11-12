@@ -1,13 +1,11 @@
-name: Update PSXI market prices and publish site
+name: Deploy Static Site to GitHub Pages
 
 on:
-  schedule:
-    - cron: "*/30 * * * *"
   workflow_dispatch:
   push:
     branches:
-        - main
-        - master
+      - main
+      - master
 
 permissions:
   contents: read
@@ -19,34 +17,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  update-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      - url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Check out repository
+      - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          python-version: "3.12"
-
-      - name: Install dependencies
-        run: pip install requests beautifulsoup4
-
-      - name: Fetch PSXI prices
-        run: python scripts/update_prices.py
-
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload site artifact
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: .
-
-      - name: Deploy site
+          path: '.'
+      - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
