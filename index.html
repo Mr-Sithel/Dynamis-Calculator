@@ -34,7 +34,7 @@
             padding: 25px;
             border-radius: 4px;
             box-shadow: 0 0 20px rgba(0,0,0,0.8);
-            position: relative; /* Anchors the absolute footer signature */
+            position: relative;
         }
 
         h2 { 
@@ -47,7 +47,6 @@
         table { width: 100%; border-collapse: collapse; margin: 20px 0; }
         th, td { border: 1px solid var(--ff-border); padding: 10px; text-align: center; }
         
-        /* Input Styles */
         input.edit-cell { 
             background: #1a1e23; border: 1px solid var(--ff-border);
             color: white; padding: 6px; border-radius: 2px; text-align: center;
@@ -62,12 +61,10 @@
 
         input:focus { border-color: var(--ff-highlight); outline: none; }
 
-        /* Currency Text Match Colors */
-        .text-byne { color: #38bdf8; font-weight: 500; }    /* Light Blue matching Bynes header */
-        .text-shell { color: #4ade80; font-weight: 500; }   /* Green matching Shells header */
-        .text-bronze { color: #fb923c; font-weight: 500; }  /* Orange/Bronze matching Bronze header */
+        .text-byne { color: #38bdf8; font-weight: 500; }
+        .text-shell { color: #4ade80; font-weight: 500; }
+        .text-bronze { color: #fb923c; font-weight: 500; }
 
-        /* Action Area Wrapper */
         .action-wrapper {
             display: flex;
             flex-direction: column;
@@ -75,7 +72,6 @@
             margin: 30px 0 25px 0;
         }
 
-        /* Notification text reserves its space using visibility instead of display */
         #copyNotification { 
             color: var(--accent-green); 
             font-weight: bold; 
@@ -84,7 +80,6 @@
             margin-bottom: 8px; 
         }
 
-        /* Buttons Bar */
         .action-bar { 
             display: flex; 
             gap: 10px; 
@@ -101,7 +96,6 @@
         .results-table { width: 100%; background: #1a1e23; }
         .results-table th { background: #282e36; color: var(--ff-gold); }
 
-        /* Creator Signature - Version Footer */
         .footer-row {
             display: flex;
             justify-content: space-between;
@@ -113,7 +107,6 @@
             letter-spacing: 0.5px;
         }
 
-        /* Live PSXI market prices */
         .market-prices {
             margin: 24px 0 28px;
             padding: 16px;
@@ -194,7 +187,6 @@
             .market-grid { grid-template-columns: 1fr; }
             .market-card { padding: 12px; }
         }
-
     </style>
 </head>
 <body>
@@ -269,10 +261,9 @@
             </tr>
         </table>
     
-
         <section class="market-prices" aria-label="HorizonXI market prices">
             <h3>HorizonXI Market Prices</h3>
-            <p class="market-subtitle">Live currency pricing from PSXI · refreshed automatically</p>
+            <p class="market-subtitle">Live currency pricing from PSXI · AH priority with Bazaar fallback</p>
             <div class="market-grid">
                 <div class="market-card market-byne">
                     <div class="market-name">1 Byne Bill</div>
@@ -323,9 +314,8 @@
             <tbody id="playerTableBody"></tbody>
         </table>
 
-        <!-- Bottom Left/Right Creator Signature -->
         <div class="footer-row">
-            <div class="version-footer">Version: 1.7</div>
+            <div class="version-footer">Version: 1.8</div>
             <div class="creator-footer">Created by Sithel</div>
         </div>
     </div>
@@ -424,7 +414,6 @@
                     const items = window.playerLeftoversMap[originalIndex] || [];
                     let counts = {}; items.forEach(it => counts[it] = (counts[it] || 0) + 1);
                     
-                    // Map counts and apply individual matching text colors
                     leftovers = Object.entries(counts).map(([k, v]) => {
                         let colorClass = '';
                         if (k === 'Byne') colorClass = 'text-byne';
@@ -469,7 +458,6 @@
                 activeNames.push(playerNamesData[currentShuffledOrder[i]]);
             }
     
-            // Calculate total raw currency values (singles + 100s converted)
             const totalBynes = (parseInt(document.getElementById('inputBynes').value) || 0) + (parseInt(document.getElementById('input100Byne').value) || 0) * 100;
             const totalShells = (parseInt(document.getElementById('inputShells').value) || 0) + (parseInt(document.getElementById('inputJadeshell').value) || 0) * 100;
             const totalBronze = (parseInt(document.getElementById('inputBronze').value) || 0) + (parseInt(document.getElementById('inputSilverpiece').value) || 0) * 100;
@@ -541,71 +529,135 @@
                 }, 2000);
             });
         }
-    
 
-        // Load the latest PSXI prices published by the GitHub Actions updater.
         function formatGil(value) {
             const number = Number(value);
             return Number.isFinite(number) ? number.toLocaleString() + ' gil' : 'Unavailable';
         }
 
-        function renderMarketCard(itemData, priceId, typeId, detailsId) {
-            const priceEl = document.getElementById(priceId);
-            const typeEl = document.getElementById(typeId);
-            const detailsEl = document.getElementById(detailsId);
+        async function fetchPsxiItem(url) {
+            const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
+            const response = await fetch(proxyUrl);
+            if (!response.ok) throw new Error('Network error connecting to proxy');
+            const data = await response.json();
+            const parser = new DOMParser();
+            return parser.parseFromString(data.contents, 'text/html');
+        }
 
-            if (!itemData) {
-                priceEl.textContent = 'Unavailable';
-                typeEl.textContent = 'No data';
-                detailsEl.textContent = '—';
-                return;
+        async function parseItemData(url) {
+            const doc = await fetchPsxiItem(url);
+            const text = doc.body.textContent || "";
+
+            // 1. Try parsing AH single-item summary
+            const ahMatch = text.match(/Single\s+([\d,]+)\s*gil\s+Avg\s+([\d,]+)\s+Median\s+([\d,]+)\s+Stock\s+([\d,]+)/i);
+            if (ahMatch) {
+                const single = parseInt(ahMatch[1].replace(/,/g, ''));
+                const stock = parseInt(ahMatch[4].replace(/,/g, ''));
+                if (single > 0 || stock > 0) {
+                    return {
+                        source: "AH",
+                        price: single,
+                        average: parseInt(ahMatch[2].replace(/,/g, '')),
+                        median: parseInt(ahMatch[3].replace(/,/g, '')),
+                        stock: stock
+                    };
+                }
             }
 
-            // Check if data came from Auction House
-            if (itemData.single !== undefined) {
-                priceEl.textContent = formatGil(itemData.single);
-                typeEl.textContent = 'Auction House';
-                detailsEl.textContent = `Average: ${formatGil(itemData.average)} · Median: ${formatGil(itemData.median)} · Stock: ${itemData.stock ?? '—'}`;
-            } 
-            // Otherwise fall back to Bazaar data
-            else if (itemData.lowest_bazaar !== undefined) {
-                priceEl.textContent = formatGil(itemData.lowest_bazaar);
-                typeEl.textContent = 'Lowest Online Bazaar';
-                detailsEl.textContent = `Lowest active Bazaar asking price · Qty: ${itemData.quantity ?? '—'}`;
-            } 
-            else {
-                priceEl.textContent = 'Unavailable';
-                typeEl.textContent = 'Unknown source';
-                detailsEl.textContent = '—';
+            // 2. Fall back to lowest online Bazaar listing
+            let lowestPrice = null;
+            let lowestQty = null;
+
+            const headings = doc.querySelectorAll('h2, h3, h4');
+            for (let h of headings) {
+                if (h.textContent.includes('Bazaar Listings')) {
+                    const table = h.nextElementSibling;
+                    if (table && table.tagName === 'TABLE') {
+                        const rows = table.querySelectorAll('tr');
+                        for (let row of rows) {
+                            const rowText = row.textContent;
+                            if (rowText.includes('Online')) {
+                                const cells = row.querySelectorAll('td, th');
+                                if (cells.length >= 2) {
+                                    const priceMatch = cells[1].textContent.match(/([\d,]+)/);
+                                    if (priceMatch) {
+                                        const p = parseInt(priceMatch[1].replace(/,/g, ''));
+                                        let q = 1;
+                                        if (cells.length >= 3) {
+                                            const qMatch = cells[2].textContent.match(/\d+/);
+                                            if (qMatch) q = parseInt(qMatch[0]);
+                                        }
+                                        if (lowestPrice === null || p < lowestPrice) {
+                                            lowestPrice = p;
+                                            lowestQty = q;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
+
+            if (lowestPrice !== null) {
+                return {
+                    source: "Bazaar",
+                    price: lowestPrice,
+                    quantity: lowestQty
+                };
+            }
+
+            throw new Error("No data found");
         }
 
         async function loadMarketPrices() {
             const status = document.getElementById('marketStatus');
-            status.textContent = 'Refreshing market prices...';
+            status.textContent = 'Fetching live market prices from PSXI...';
+
+            const urls = {
+                byne: "https://www.psxi.gg/s/horizonxi/ah/misc-3/1-byne-bill",
+                whiteshell: "https://www.psxi.gg/s/horizonxi/ah/misc-3/t-whiteshell",
+                bronzepiece: "https://www.psxi.gg/s/horizonxi/ah/misc-3/o-bronzepiece"
+            };
+
+            const updateCard = (result, priceId, typeId, detailsId) => {
+                const priceEl = document.getElementById(priceId);
+                const typeEl = document.getElementById(typeId);
+                const detailsEl = document.getElementById(detailsId);
+
+                if (result.source === "AH") {
+                    priceEl.textContent = formatGil(result.price);
+                    typeEl.textContent = 'Auction House';
+                    detailsEl.textContent = `Average: ${formatGil(result.average)} · Median: ${formatGil(result.median)} · Stock: ${result.stock}`;
+                } else if (result.source === "Bazaar") {
+                    priceEl.textContent = formatGil(result.price);
+                    typeEl.textContent = 'Lowest Online Bazaar';
+                    detailsEl.textContent = `Lowest active Bazaar asking price · Qty: ${result.quantity}`;
+                }
+            };
 
             try {
-                const response = await fetch('./prices.json?cache=' + Date.now(), { cache: 'no-store' });
-                if (!response.ok) throw new Error('Price data is not available yet.');
-                const data = await response.json();
+                // Fetch all 3 concurrently
+                const [byneRes, shellRes, bronzeRes] = await Promise.allSettled([
+                    parseItemData(urls.byne),
+                    parseItemData(urls.whiteshell),
+                    parseItemData(urls.bronzepiece)
+                ]);
 
-                renderMarketCard(data.byne, 'priceByne', 'typeByne', 'detailsByne');
-                renderMarketCard(data.whiteshell, 'priceShell', 'typeShell', 'detailsShell');
-                renderMarketCard(data.bronzepiece, 'priceBronze', 'typeBronze', 'detailsBronze');
+                if (byneRes.status === 'fulfilled') updateCard(byneRes.value, 'priceByne', 'typeByne', 'detailsByne');
+                else document.getElementById('priceByne').textContent = 'Unavailable';
 
-                if (data.updated_at) {
-                    const updated = new Date(data.updated_at);
-                    document.getElementById('marketUpdated').textContent =
-                        'Last updated: ' + (Number.isNaN(updated.getTime()) ? data.updated_at : updated.toLocaleString());
-                }
+                if (shellRes.status === 'fulfilled') updateCard(shellRes.value, 'priceShell', 'typeShell', 'detailsShell');
+                else document.getElementById('priceShell').textContent = 'Unavailable';
 
-                status.textContent = 'Prices loaded from PSXI.';
+                if (bronzeRes.status === 'fulfilled') updateCard(bronzeRes.value, 'priceBronze', 'typeBronze', 'detailsBronze');
+                else document.getElementById('priceBronze').textContent = 'Unavailable';
+
+                const now = new Date();
+                document.getElementById('marketUpdated').textContent = 'Last updated: ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                status.textContent = 'Live prices loaded successfully.';
             } catch (error) {
-                status.textContent = error.message + ' The scheduled updater may not have run yet.';
-                ['priceByne', 'priceShell', 'priceBronze'].forEach(id => {
-                    const el = document.getElementById(id);
-                    if (el.textContent === 'Loading...') el.textContent = 'Unavailable';
-                });
+                status.textContent = 'Failed to load live market prices.';
             }
         }
 
