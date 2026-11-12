@@ -6,6 +6,7 @@ from pathlib import Path
 import re
 import json
 import sys
+import time
 
 import requests
 from bs4 import BeautifulSoup
@@ -18,14 +19,28 @@ URLS = {
 }
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (compatible; DynamisCalculatorPriceUpdater/1.0)"
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/131.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
 }
 
 
-def get_soup(url):
-    response = requests.get(url, headers=HEADERS, timeout=30)
+def get_soup(session, url, retries=3):
+    for attempt in range(1, retries + 1):
+        response = session.get(url, headers=HEADERS, timeout=30)
+        if response.status_code == 429:
+            retry_after = int(response.headers.get("Retry-After", 15 * attempt))
+            print(f"Rate limited (429) on {url}. Waiting {retry_after}s before retry {attempt}/{retries}...")
+            time.sleep(retry_after)
+            continue
+        response.raise_for_status()
+        return BeautifulSoup(response.text, "html.parser")
+
     response.raise_for_status()
-    return BeautifulSoup(response.text, "html.parser")
 
 
 def parse_ah_single(soup, item_name):
@@ -109,7 +124,6 @@ def parse_item_data(soup, item_name):
     try:
         return parse_ah_single(soup, item_name)
     except (ValueError, AttributeError) as ah_error:
-        # Fall back to bazaar if AH parsing fails or has no active data
         try:
             return parse_lowest_online_bazaar(soup, item_name)
         except (ValueError, AttributeError) as bazaar_error:
@@ -120,11 +134,11 @@ def parse_item_data(soup, item_name):
 
 
 def main():
-    items = {
-        "byne": "1 Byne Bill",
-        "whiteshell": "T. Whiteshell",
-        "bronzepiece": "O. Bronzepiece"
-    }
+    items = [
+        ("byne", "1 Byne Bill"),
+        ("whiteshell", "T. Whiteshell"),
+        ("bronzepiece", "O. Bronzepiece"),
+    ]
 
     data = {
         "updated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -133,9 +147,12 @@ def main():
         "source_urls": URLS,
     }
 
-    for key, name in items.items():
-        soup = get_soup(URLS[key])
-        data[key] = parse_item_data(soup, name)
+    with requests.Session() as session:
+        for index, (key, name) in enumerate(items):
+            if index > 0:
+                time.sleep(3)  # Brief pause between requests to avoid triggering rate limits
+            soup = get_soup(session, URLS[key])
+            data[key] = parse_item_data(soup, name)
 
     output = Path("prices.json")
     output.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
