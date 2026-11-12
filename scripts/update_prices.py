@@ -29,23 +29,13 @@ HEADERS = {
 }
 
 
-def get_soup(session, url, retries=3):
-    for attempt in range(1, retries + 1):
-        response = session.get(url, headers=HEADERS, timeout=30)
-        if response.status_code == 429:
-            retry_after = int(response.headers.get("Retry-After", 15 * attempt))
-            print(f"Rate limited (429) on {url}. Waiting {retry_after}s before retry {attempt}/{retries}...")
-            time.sleep(retry_after)
-            continue
-        response.raise_for_status()
-        return BeautifulSoup(response.text, "html.parser")
-
+def get_soup(session, url):
+    response = session.get(url, headers=HEADERS, timeout=30)
     response.raise_for_status()
+    return BeautifulSoup(response.text, "html.parser")
 
 
 def parse_ah_single(soup, item_name):
-    # PSXI presents the item summary in this order:
-    # Single <price> gil Avg <average> Median <median> Stock <stock>
     text = soup.get_text(" ", strip=True)
     match = re.search(
         r"Single\s+([\d,]+)\s*gil\s+Avg\s+([\d,]+)\s+Median\s+([\d,]+)\s+Stock\s+([\d,]+)",
@@ -56,8 +46,6 @@ def parse_ah_single(soup, item_name):
         raise ValueError(f"Could not find the AH single-price summary for {item_name}")
 
     values = [int(value.replace(",", "")) for value in match.groups()]
-    
-    # If stock and single price are both 0, treat it as unavailable data to trigger fallback
     if values[0] == 0 and values[3] == 0:
         raise ValueError(f"AH summary for {item_name} has zero price and stock")
 
@@ -71,7 +59,6 @@ def parse_ah_single(soup, item_name):
 
 
 def parse_lowest_online_bazaar(soup, item_name):
-    # Find the Bazaar Listings heading, then inspect its first table.
     heading = None
     for element in soup.find_all(["h2", "h3", "h4"]):
         if "Bazaar Listings" in element.get_text(" ", strip=True):
@@ -95,7 +82,6 @@ def parse_lowest_online_bazaar(soup, item_name):
         if not re.search(r"\bOnline\b", row_text, re.IGNORECASE):
             continue
 
-        # PSXI's listing table columns are Seller, Price, Qty, Zone, Status.
         price_match = re.search(r"([\d,]+)", cells[1])
         if not price_match:
             continue
@@ -123,14 +109,8 @@ def parse_item_data(soup, item_name):
     """
     try:
         return parse_ah_single(soup, item_name)
-    except (ValueError, AttributeError) as ah_error:
-        try:
-            return parse_lowest_online_bazaar(soup, item_name)
-        except (ValueError, AttributeError) as bazaar_error:
-            raise ValueError(
-                f"Failed to retrieve pricing for {item_name}. "
-                f"AH Error: {ah_error} | Bazaar Error: {bazaar_error}"
-            )
+    except (ValueError, AttributeError):
+        return parse_lowest_online_bazaar(soup, item_name)
 
 
 def main():
@@ -150,7 +130,7 @@ def main():
     with requests.Session() as session:
         for index, (key, name) in enumerate(items):
             if index > 0:
-                time.sleep(3)  # Brief pause between requests to avoid triggering rate limits
+                time.sleep(2)  # Short pause between requests
             soup = get_soup(session, URLS[key])
             data[key] = parse_item_data(soup, name)
 
