@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fetch HorizonXI currency prices from PSXI and write prices.json."""
+"""Fetch HorizonXI currency prices (both AH and Bazaar) from PSXI and write prices.json."""
 
 from datetime import datetime, timezone
 from pathlib import Path
@@ -7,6 +7,7 @@ import re
 import json
 import sys
 import time
+import statistics
 
 import requests
 from bs4 import BeautifulSoup
@@ -35,7 +36,7 @@ def get_soup(session, url):
     return BeautifulSoup(response.text, "html.parser")
 
 
-def parse_ah_single(soup, item_name):
+def parse_ah_data(soup):
     text = soup.get_text(" ", strip=True)
     match = re.search(
         r"Single\s+([\d,]+)\s*gil\s+Avg\s+([\d,]+)\s+Median\s+([\d,]+)\s+Stock\s+([\d,]+)",
@@ -43,22 +44,18 @@ def parse_ah_single(soup, item_name):
         re.IGNORECASE,
     )
     if not match:
-        raise ValueError(f"Could not find the AH single-price summary for {item_name}")
+        return None
 
     values = [int(value.replace(",", "")) for value in match.groups()]
-    if values[0] == 0 and values[3] == 0:
-        raise ValueError(f"AH summary for {item_name} has zero price and stock")
-
     return {
         "single": values[0],
         "average": values[1],
         "median": values[2],
         "stock": values[3],
-        "source": "Auction House single-item summary",
     }
 
 
-def parse_lowest_online_bazaar(soup, item_name):
+def parse_bazaar_data(soup):
     heading = None
     for element in soup.find_all(["h2", "h3", "h4"]):
         if "Bazaar Listings" in element.get_text(" ", strip=True):
@@ -66,51 +63,42 @@ def parse_lowest_online_bazaar(soup, item_name):
             break
 
     if heading is None:
-        raise ValueError(f"Could not find the Bazaar Listings section for {item_name}")
+        return None
 
     table = heading.find_next("table")
     if table is None:
-        raise ValueError(f"Could not find the Bazaar listings table for {item_name}")
+        return None
 
-    listings = []
+    prices = []
     for row in table.find_all("tr"):
-        cells = [cell.get_text(" ", strip=True) for cell in row.find_all(["td", "th"])]
-        if len(cells) < 4:
+        cells = [cell.get_text(" ", strip=True) for cell in row.find_all(["td"])]
+        if len(cells) < 2:
             continue
 
-        row_text = " ".join(cells)
-        if not re.search(r"\bOnline\b", row_text, re.IGNORECASE):
-            continue
-
+        # Parse price column without filtering out offline players
         price_match = re.search(r"([\d,]+)", cells[1])
         if not price_match:
             continue
         price = int(price_match.group(1).replace(",", ""))
+        if price > 0:
+            prices.append(price)
 
-        quantity_match = re.search(r"\d+", cells[2])
-        quantity = int(quantity_match.group()) if quantity_match else None
-        listings.append((price, quantity))
+    if not prices:
+        return None
 
-    if not listings:
-        raise ValueError(f"No active online Bazaar listings were found for {item_name}")
-
-    lowest_price, quantity = min(listings, key=lambda item: item[0])
+    prices.sort()
     return {
-        "lowest_bazaar": lowest_price,
-        "quantity": quantity,
-        "source": "Lowest active online Bazaar asking price (not an AH sale)",
+        "lowest": prices[0],
+        "median": int(statistics.median(prices)),
+        "listings": len(prices),
     }
 
 
-def parse_item_data(soup, item_name):
-    """
-    1. Check Auction House first.
-    2. If no AH price/stock is available, fall back to lowest online Bazaar price.
-    """
-    try:
-        return parse_ah_single(soup, item_name)
-    except (ValueError, AttributeError):
-        return parse_lowest_online_bazaar(soup, item_name)
+def parse_item_data(soup):
+    return {
+        "ah": parse_ah_data(soup),
+        "bazaar": parse_bazaar_data(soup),
+    }
 
 
 def main():
@@ -130,9 +118,9 @@ def main():
     with requests.Session() as session:
         for index, (key, name) in enumerate(items):
             if index > 0:
-                time.sleep(2)  # Short pause between requests
+                time.sleep(2)
             soup = get_soup(session, URLS[key])
-            data[key] = parse_item_data(soup, name)
+            data[key] = parse_item_data(soup)
 
     output = Path("prices.json")
     output.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
