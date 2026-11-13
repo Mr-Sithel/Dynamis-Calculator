@@ -128,6 +128,13 @@
             color: #aeb7c2;
             font-size: 0.82rem;
         }
+        .market-subtitle a {
+            color: #38bdf8;
+            text-decoration: none;
+        }
+        .market-subtitle a:hover {
+            text-decoration: underline;
+        }
         .market-grid {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -173,6 +180,10 @@
         }
         #marketUpdated {
             color: #aeb7c2;
+            font-size: 0.78rem;
+        }
+        #manualUpdate {
+            color: #f72206;
             font-size: 0.78rem;
         }
         @media (max-width: 620px) {
@@ -255,7 +266,7 @@
     
         <section class="market-prices" aria-label="HorizonXI market prices">
             <h3>HorizonXI Market Prices</h3>
-            <p class="market-subtitle">Live currency pricing from PSXI · AH priority with Bazaar fallback</p>
+            <p class="market-subtitle">Live currency pricing from <a href="https://www.psxi.gg" target="_blank" rel="noopener noreferrer">PSXI</a> · AH priority with Bazaar fallback</p>
             <div class="market-grid">
                 <div class="market-card market-byne">
                     <div class="market-name">1 Byne Bill</div>
@@ -279,6 +290,7 @@
             <div class="market-controls">
                 <!--<button type="button" onclick="loadMarketPrices()">Refresh Prices</button>-->
                 <span id="marketUpdated">Last updated: —</span>
+                <span id="manualUpdate">This is manually updated!</span>
             </div>
         </section>
 
