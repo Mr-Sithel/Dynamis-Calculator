@@ -166,20 +166,12 @@
         .market-bronze .market-name { color: #fb923c; }
         .market-controls {
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
-            gap: 12px;
-            flex-wrap: wrap;
+            gap: 6px;
             margin-top: 14px;
         }
         #marketUpdated {
-            color: #aeb7c2;
-            font-size: 0.78rem;
-        }
-        #marketStatus {
-            text-align: center;
-            min-height: 1em;
-            margin-top: 8px;
             color: #aeb7c2;
             font-size: 0.78rem;
         }
@@ -288,7 +280,6 @@
                 <button type="button" onclick="loadMarketPrices()">Refresh Prices</button>
                 <span id="marketUpdated">Last updated: —</span>
             </div>
-            <div id="marketStatus" role="status"></div>
         </section>
 
         <div class="action-wrapper">
@@ -536,9 +527,6 @@
         }
 
         async function loadMarketPrices() {
-            const status = document.getElementById('marketStatus');
-            status.textContent = 'Loading market prices...';
-
             try {
                 const response = await fetch('./prices.json?cache=' + Date.now(), { cache: 'no-store' });
                 if (!response.ok) throw new Error('Price data not found.');
@@ -570,10 +558,7 @@
                     document.getElementById('marketUpdated').textContent =
                         'Last updated: ' + (Number.isNaN(updated.getTime()) ? data.updated_at : updated.toLocaleString());
                 }
-
-                status.textContent = 'Prices loaded successfully.';
             } catch (error) {
-                status.textContent = 'Failed to load prices.json';
                 ['priceByne', 'priceShell', 'priceBronze'].forEach(id => {
                     document.getElementById(id).textContent = 'Unavailable';
                 });
