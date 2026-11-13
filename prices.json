@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-11-12T23:23:21+00:00",
+  "updated_at": "2026-11-13T00:58:19+00:00",
   "server": "HorizonXI",
   "provider": "PSXI",
   "source_urls": {
@@ -16,7 +16,7 @@
   },
   "whiteshell": {
     "single": 8000,
-    "average": 8050,
+    "average": 8000,
     "median": 8000,
     "stock": 7,
     "source": "Auction House single-item summary"
