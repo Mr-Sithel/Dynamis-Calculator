@@ -163,10 +163,15 @@
             font-size: 0.75rem;
         }
         .market-card .market-details {
-            margin-top: 8px;
+            margin-top: 6px;
             color: #c5cbd2;
-            font-size: 0.75rem;
-            line-height: 1.5;
+            font-size: 0.74rem;
+            line-height: 1.4;
+        }
+        .market-bazaar-section {
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(74, 84, 96, 0.5);
         }
         .market-byne .market-name { color: #38bdf8; }
         .market-shell .market-name { color: #4ade80; }
@@ -183,7 +188,7 @@
             font-size: 0.78rem;
         }
         #manualUpdate {
-            color: #f72206;
+            color: #f7220660;
             font-size: 0.78rem;
         }
         @media (max-width: 620px) {
@@ -266,31 +271,42 @@
     
         <section class="market-prices" aria-label="HorizonXI market prices">
             <h3>HorizonXI Market Prices</h3>
-            <p class="market-subtitle">Live currency pricing from <a href="https://www.psxi.gg" target="_blank" rel="noopener noreferrer">PSXI</a> · AH priority with Bazaar fallback</p>
+            <p class="market-subtitle">Live currency pricing from <a href="https://www.psxi.gg" target="_blank" rel="noopener noreferrer">PSXI</a> · Auction House & Bazaar Listings</p>
             <div class="market-grid">
                 <div class="market-card market-byne">
                     <div class="market-name">1 Byne Bill</div>
                     <div class="market-value" id="priceByne">Loading...</div>
-                    <div class="market-type" id="typeByne">—</div>
+                    <div class="market-type">Auction House</div>
                     <div class="market-details" id="detailsByne">Checking market...</div>
+                    <div class="market-bazaar-section">
+                        <div class="market-type">Bazaar Listing</div>
+                        <div class="market-details" id="bazaarByne">—</div>
+                    </div>
                 </div>
                 <div class="market-card market-shell">
                     <div class="market-name">T. Whiteshell</div>
                     <div class="market-value" id="priceShell">Loading...</div>
-                    <div class="market-type" id="typeShell">—</div>
+                    <div class="market-type">Auction House</div>
                     <div class="market-details" id="detailsShell">Checking market...</div>
+                    <div class="market-bazaar-section">
+                        <div class="market-type">Bazaar Listing</div>
+                        <div class="market-details" id="bazaarShell">—</div>
+                    </div>
                 </div>
                 <div class="market-card market-bronze">
                     <div class="market-name">O. Bronzepiece</div>
                     <div class="market-value" id="priceBronze">Loading...</div>
-                    <div class="market-type" id="typeBronze">—</div>
+                    <div class="market-type">Auction House</div>
                     <div class="market-details" id="detailsBronze">Checking market...</div>
+                    <div class="market-bazaar-section">
+                        <div class="market-type">Bazaar Listing</div>
+                        <div class="market-details" id="bazaarBronze">—</div>
+                    </div>
                 </div>
             </div>
             <div class="market-controls">
-                <!--<button type="button" onclick="loadMarketPrices()">Refresh Prices</button>-->
                 <span id="marketUpdated">Last updated: —</span>
-                <span id="manualUpdate">This is manually updated!</span>
+                <span id="manualUpdate">This is manually updated...</span>
             </div>
         </section>
 
@@ -318,7 +334,7 @@
         </table>
 
         <div class="footer-row">
-            <div class="version-footer">Version: 1.8</div>
+            <div class="version-footer">Version: 1.8.1</div>
             <div class="creator-footer">Created by Sithel</div>
         </div>
     </div>
@@ -544,26 +560,30 @@
                 if (!response.ok) throw new Error('Price data not found.');
                 const data = await response.json();
 
-                const updateCard = (item, priceId, typeId, detailsId) => {
+                const updateCard = (item, priceId, ahDetailsId, bazaarDetailsId) => {
                     if (!item) return;
                     const priceEl = document.getElementById(priceId);
-                    const typeEl = document.getElementById(typeId);
-                    const detailsEl = document.getElementById(detailsId);
+                    const ahDetailsEl = document.getElementById(ahDetailsId);
+                    const bazaarDetailsEl = document.getElementById(bazaarDetailsId);
 
-                    if (item.single !== undefined) {
-                        priceEl.textContent = formatGil(item.single);
-                        typeEl.textContent = 'Auction House';
-                        detailsEl.textContent = `Average: ${formatGil(item.average)} · Median: ${formatGil(item.median)} · Stock: ${item.stock}`;
-                    } else if (item.lowest_bazaar !== undefined) {
-                        priceEl.textContent = formatGil(item.lowest_bazaar);
-                        typeEl.textContent = 'Lowest Online Bazaar';
-                        detailsEl.textContent = `Lowest active Bazaar asking price · Qty: ${item.quantity}`;
+                    if (item.ah) {
+                        priceEl.textContent = formatGil(item.ah.single);
+                        ahDetailsEl.textContent = `Average: ${formatGil(item.ah.average)} · Median: ${formatGil(item.ah.median)} · Stock: ${item.ah.stock}`;
+                    } else {
+                        priceEl.textContent = 'Unavailable';
+                        ahDetailsEl.textContent = 'No AH data';
+                    }
+
+                    if (item.bazaar) {
+                        bazaarDetailsEl.textContent = `Lowest: ${formatGil(item.bazaar.lowest)} · Median: ${formatGil(item.bazaar.median)} · Listings: ${item.bazaar.listings}`;
+                    } else {
+                        bazaarDetailsEl.textContent = 'No active Bazaar listings';
                     }
                 };
 
-                updateCard(data.byne, 'priceByne', 'typeByne', 'detailsByne');
-                updateCard(data.whiteshell, 'priceShell', 'typeShell', 'detailsShell');
-                updateCard(data.bronzepiece, 'priceBronze', 'typeBronze', 'detailsBronze');
+                updateCard(data.byne, 'priceByne', 'detailsByne', 'bazaarByne');
+                updateCard(data.whiteshell, 'priceShell', 'detailsShell', 'bazaarShell');
+                updateCard(data.bronzepiece, 'priceBronze', 'detailsBronze', 'bazaarBronze');
 
                 if (data.updated_at) {
                     const updated = new Date(data.updated_at);
