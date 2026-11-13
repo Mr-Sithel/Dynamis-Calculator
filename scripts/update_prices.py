@@ -71,16 +71,24 @@ def parse_bazaar_data(soup):
 
     prices = []
     for row in table.find_all("tr"):
+        row_text = row.get_text(" ", strip=True)
+        
+        # Strictly enforce that the listing must be currently Online
+        if not re.search(r"\bOnline\b", row_text, re.IGNORECASE):
+            continue
+
         cells = [cell.get_text(" ", strip=True) for cell in row.find_all(["td"])]
         if len(cells) < 2:
             continue
 
-        # Parse price column without filtering out offline players
         price_match = re.search(r"([\d,]+)", cells[1])
         if not price_match:
             continue
         price = int(price_match.group(1).replace(",", ""))
-        if price > 0:
+        
+        # Filter out extreme outlier placeholder prices (like 99,999,999) if needed, 
+        # but keep normal valid asking prices > 0
+        if 0 < price < 50000000: 
             prices.append(price)
 
     if not prices:
@@ -92,7 +100,6 @@ def parse_bazaar_data(soup):
         "median": int(statistics.median(prices)),
         "listings": len(prices),
     }
-
 
 def parse_item_data(soup):
     return {
