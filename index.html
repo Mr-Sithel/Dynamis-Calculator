@@ -334,7 +334,7 @@
         </table>
 
         <div class="footer-row">
-            <div class="version-footer">Version: 1.8.1</div>
+            <div class="version-footer">Version: 1.8.2</div>
             <div class="creator-footer">Created by Sithel</div>
         </div>
     </div>
@@ -446,23 +446,61 @@
             }
         }
     
-        function randomizePlayers() {
-            const numPlayers = parseInt(document.getElementById('inputPlayers').value) || 1;
-            let active = Array.from({length: numPlayers}, (_, i) => i).sort(() => Math.random() - 0.5);
-            currentShuffledOrder = [...active, ...Array.from({length: 18 - numPlayers}, (_, i) => i + numPlayers)];
+        function shuffleArray(array) {
+            const shuffled = [...array];
+
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+
+            return shuffled;
+        }
             
+        function randomizePlayers() {
+            const numPlayers = Math.min(18, Math.max(1,
+                parseInt(document.getElementById('inputPlayers').value) || 1
+            ));
+
+            // Randomize player order using Fisher-Yates
+            let active = shuffleArray(
+                Array.from({ length: numPlayers }, (_, i) => i)
+            );
+
+            currentShuffledOrder = [
+                ...active,
+                ...Array.from(
+                    { length: 18 - numPlayers },
+                    (_, i) => i + numPlayers
+                )
+            ];
+
+            // Clear previous leftover assignments
             window.playerLeftoversMap = {};
-            for(let i=0; i<numPlayers; i++) window.playerLeftoversMap[i] = [];
+
+            for (let i = 0; i < numPlayers; i++) {
+                window.playerLeftoversMap[i] = [];
+            }
+
+            // Distribute leftovers fairly among all active players
             const distribute = (type, count) => {
-                let p = [...active].sort(() => Math.random() - 0.5);
-                for(let i=0; i<count; i++) window.playerLeftoversMap[p[i % numPlayers]].push(type);
+                const players = shuffleArray(active);
+
+                count = Math.max(0, parseInt(count) || 0);
+
+                for (let i = 0; i < count; i++) {
+                    const playerIndex = players[i % numPlayers];
+
+                    window.playerLeftoversMap[playerIndex].push(type);
+                }
             };
-            distribute("Byne", parseInt(document.getElementById('leftoverBynes').innerText));
-            distribute("Shell", parseInt(document.getElementById('leftoverShells').innerText));
-            distribute("Bronze", parseInt(document.getElementById('leftoverBronze').innerText));
+
+            distribute("Byne", document.getElementById('leftoverBynes').innerText);
+            distribute("Shell", document.getElementById('leftoverShells').innerText);
+            distribute("Bronze", document.getElementById('leftoverBronze').innerText);
             renderTable();
         }
-    
+
         function copyForDiscord() {
             const numPlayers = parseInt(document.getElementById('inputPlayers').value) || 1;
             const zone = document.getElementById('inputZone').value || 'Unknown';
