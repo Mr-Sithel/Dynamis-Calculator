@@ -8,7 +8,9 @@ Randomize players and calculate currency payouts, and divide out leftover curren
 
 ## Webpage Example
 
-![FFXI Dynamis Currency Calculator](examples/calculator.png)
+<p>
+  <img src="examples/calculator.png" alt="FFXI Dynamis Currency Calculator" height="900">
+</p>
 
 ## Discords Copy/Paste Example
 
