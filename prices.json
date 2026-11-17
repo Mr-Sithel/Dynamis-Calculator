@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-11-17T21:30:01+00:00",
+  "updated_at": "2026-11-17T22:00:01+00:00",
   "server": "HorizonXI",
   "provider": "PSXI",
   "source_urls": {
@@ -16,7 +16,7 @@
     },
     "bazaar": {
       "lowest": 5600,
-      "median": 5800,
+      "median": 6000,
       "listings": 9
     }
   },
@@ -28,7 +28,7 @@
       "stock": 3
     },
     "bazaar": {
-      "lowest": 8399,
+      "lowest": 8499,
       "median": 8700,
       "listings": 9
     }
@@ -41,9 +41,9 @@
       "stock": 15
     },
     "bazaar": {
-      "lowest": 7700,
+      "lowest": 7799,
       "median": 7900,
-      "listings": 16
+      "listings": 17
     }
   }
 }
