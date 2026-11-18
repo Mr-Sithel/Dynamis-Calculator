@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-11-18T10:00:00+00:00",
+  "updated_at": "2026-11-18T10:30:00+00:00",
   "server": "HorizonXI",
   "provider": "PSXI",
   "source_urls": {
@@ -17,7 +17,7 @@
     "bazaar": {
       "lowest": 5600,
       "median": 5900,
-      "listings": 18
+      "listings": 17
     }
   },
   "whiteshell": {
