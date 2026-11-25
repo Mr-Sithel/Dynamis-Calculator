@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-11-25T16:30:01+00:00",
+  "updated_at": "2026-11-25T17:00:01+00:00",
   "server": "HorizonXI",
   "provider": "PSXI",
   "source_urls": {
@@ -16,8 +16,8 @@
     },
     "bazaar": {
       "lowest": 5700,
-      "median": 5950,
-      "listings": 10
+      "median": 5900,
+      "listings": 12
     }
   },
   "whiteshell": {
@@ -29,8 +29,8 @@
     },
     "bazaar": {
       "lowest": 8600,
-      "median": 8790,
-      "listings": 16
+      "median": 8850,
+      "listings": 18
     }
   },
   "bronzepiece": {
@@ -41,7 +41,7 @@
       "stock": 0
     },
     "bazaar": {
-      "lowest": 7699,
+      "lowest": 7700,
       "median": 7900,
       "listings": 17
     }
